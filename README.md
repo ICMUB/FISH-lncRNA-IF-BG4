@@ -11,10 +11,4 @@ With these languages:
 >	- initial values (numbers) are in purple,
 >	- details are in green.
 
-Before running macro, you have be sure you have installed plugins: Adjustable Watershed, Bio-formats, and 3D Object Counter (if you are using Fiji, bio-formats and 3D object counter are already installed by default).
-
-Adjustable Watershed: https://imagej.net/plugins/adjustable-watershed/adjustable-watershed
-
-Bio-formats: https://imagej.net/formats/bio-formats or https://www.openmicroscopy.org/bio-formats/downloads/
-
-3D Object counter: https://imagej.net/plugins/3d-objects-counter
+Before running macro, you have be sure you have installed plugins: [Adjustable Watershed] (https://imagej.net/plugins/adjustable-watershed/adjustable-watershed), [Bio-formats] (https://imagej.net/formats/bio-formats) [or] (https://www.openmicroscopy.org/bio-formats/downloads/), and [3D Object Counter] (https://imagej.net/plugins/3d-objects-counter) (if you are using Fiji, bio-formats and 3D object counter are already installed by default).
