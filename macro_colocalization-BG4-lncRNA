@@ -1,0 +1,415 @@
+///////////////////////////// Entry of quantification features /////////////////////////////
+Dialog.create("!!!Warning!!!");
+Dialog.addMessage("Please, make sure : \n- There are no spaces in the folder or file name!\n- \"Bio-formats\", \"Adjustable Watershed\" and \"3D object counter\" plugins are installed!\n- Images are calibrated (in µm)");
+Dialog.show();
+
+Dialog.create("!!!Before using macro!!!");
+Dialog.addMessage("You have to set several parameters before using the macro:");
+Dialog.addMessage("");
+Dialog.addMessage("- DAPI adjustable watershed to separate nuclei,");//Adjustable watershed is able to separate badly segmented nuclei
+Dialog.addMessage("- DAPI threshold (with Ostu),");//segmentation of nuclei with Otsu threshold
+Dialog.addMessage("- Size of nucleus (min and max, in µm),");//size selection of nucleus
+Dialog.addMessage("- lncRNA threshold (with Yen),");//segmentation of lncRNA foci with Yen threshold
+Dialog.addMessage("- BG4 threshold (with Yen).");//segmentation of BG4 with Yen threshold
+Dialog.show();
+
+
+///////// Selection of channel parameters
+Dialog.create("Enter channels parameters");
+Dialog.addNumber("DAPI channel number", 4);///value assignment for DAPI channel number
+Dialog.addNumber("lncRNA (green) channel number", 3);///value assignment for lncRNA probe channel number
+Dialog.addNumber("BG4 (red) channel number", 1);///value assignment for BG4 channel number
+Dialog.addNumber("Brightfield (gray) channel number", 2);///value assignment for BF channel number
+Dialog.show();
+
+Cdapi=Dialog.getNumber();///value assignment for DAPI channel number
+Cgreen=Dialog.getNumber();///value assignment for lncRNA channel number
+Cred=Dialog.getNumber();///value assignment for BG4 channel number
+Cgray=Dialog.getNumber();///value assignment for BF channel number
+
+
+///////// Define analysis to process
+Dialog.create("Define which analysis to process");
+Dialog.addMessage("Define which analysis to process (you can do both):");
+Dialog.addCheckbox("Intensity analysis ", false);
+Dialog.addCheckbox("Colocalization analysis ", false);
+Dialog.show();
+
+Int=Dialog.getCheckbox();
+Coloc=Dialog.getCheckbox();
+
+
+///////// Entry of quantification parameters 
+Dialog.create("Enter quantification parameters");
+Dialog.addNumber("DAPI Otsu threshold", 38);///value assignment for dts
+Dialog.addNumber("DAPI watershed", 0.5);///value assignment for ws
+Dialog.addNumber("min. size of nucleus (µm)", 20);///value assignment for nmin
+Dialog.addNumber("max. size of nucleus (µm)", 300);///value assignment for nmax
+Dialog.addNumber("lncRNA Yen threshold", 70);///value assignment for gts
+Dialog.addNumber("lncRNA watershed", 0.1);///value assignment for gs
+if(Coloc){
+Dialog.addNumber("BG4 Yen threshold", 63);///value assignment for rts
+}
+Dialog.show();
+
+dts=Dialog.getNumber();///value of DAPI threshold
+ws=Dialog.getNumber();///value of DAPI watershed 
+nmin=Dialog.getNumber();///value of size of nucleus (min)
+nmax=Dialog.getNumber();///value of size of nucleus (max)
+gts=Dialog.getNumber();///value of lncRNA threshold
+gs=Dialog.getNumber();///value of lncRNA watershed 
+if(Coloc){
+rts=Dialog.getNumber();///value of BG4 threshold
+}
+
+
+
+
+function sameParameters() { 
+// allow to repeat over and over with same parameters
+
+///////// Define directories
+Dialog.create("Define directory to open images");
+Dialog.addMessage("Choose directory to open images");
+Dialog.show();
+
+open_directory=getDirectory("Choose directory to open images");
+
+
+Dialog.create("Define save directory");
+Dialog.addMessage("Choose save directory");
+Dialog.show();
+
+save_directory=getDirectory("Choose save directory");
+
+
+///////// Selection of images to process
+Dialog.create("Enter the name of images and the number of images to process");
+Dialog.addString("Enter the name of images: ", "name");//images from the same condition should have the same name
+Dialog.addMessage("type extension of file (.lif, .vsi, .(...)),");
+Dialog.addString("extension: ", ".lif");//name of extension
+Dialog.addMessage("the number of images (series) to process,");
+Dialog.addNumber("number: ", 2);//number of images with the same name
+
+Dialog.show();
+
+name= Dialog.getString();
+ext= Dialog.getString();
+i=Dialog.getNumber();
+
+
+
+///////// Print of all parameters 
+print("Name:", name);
+print("Extension:", ext);
+print("Number of images analyzed:", i);
+print("Channels of cells:", "Channel DAPI: "+Cdapi, "Channel lncRNA: "+Cgreen, "Channel BG4: "+Cred, "Channel Brightfield:"+Cgray);
+print("Size of nucleus:", nmin+"-"+nmax);
+print("DAPI Otsu threshold:", dts);
+print("DAPI adjustable watershed:", ws);
+print("lncRNA Yen threshold:", gts);
+print("lncRNA adjustable watershed:", gs);
+if(Coloc){
+print("BG4 Yen threshold:", rts);
+}
+print("Results are named as follow:\"Type of quantification (number of lncRNA foci, BG4 intensity (if Intensity analysis done), or BG4 colocalizing foci (if Colocalization analysis done))\"+\"#ROI\"+\"#image\"");
+
+
+
+
+///////////////////////////// Loop generation for quantification /////////////////////////////
+for (k=1; k<=i; k++){
+number=k;
+img=name+ext;//image name and number
+path_img=open_directory+name+ext;//path to open images
+
+img_save=name+"_"+number+".tif";
+path_img_save=save_directory+name+"_"+number+".tif";//save path for TIF image with all channels
+path_DAPI_save=save_directory+name+"_DAPI_"+number+".tif";//save path for quantified image of DAPI
+path_green_save=save_directory+name+"_lncRNA_"+number+".tif";//save path for quantified image of lncRNA staining
+path_red_save=save_directory+name+"_BG4_"+number+".tif";//save path for quantified image of BG4 staining
+
+
+///////// Renaming images
+run("Bio-Formats Importer", "open="+path_img+" color_mode=Composite rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT series_"+number);
+saveAs("tiff", path_img_save);
+
+
+///////// Z-projection and selection of ROI
+run("Z Project...", "projection=[Max Intensity]");
+selectImage("MAX_"+img_save);
+roiManager("reset");
+setTool("polygon");
+beep();
+    title = "Select all cellular clusters as ROI";
+    msg = "Use the \"Polygon\" tool to select clusters of cells,\nthen press \"t\" on keyboard,\nand once all ROI are selected, click \"OK\".";
+    waitForUser(title, msg);
+roiManager("Show All");
+saveAs("tiff", save_directory+"Max-Z-proj"+img_save);
+close("Max-Z-proj_"+img_save);
+selectImage(img_save);
+run("Split Channels");//to separate color channels
+selectWindow("C"+Cgreen+"-"+img_save);
+rename("lncRNA_"+number+".TIF");//selection and renaming lncRNA image
+selectWindow("C"+Cred+"-"+img_save);
+rename("BG4_"+number+".TIF");//selection and renaming BG4 image
+selectWindow("C"+Cdapi+"-"+img_save);
+rename("DAPI_"+number+".TIF");//selection and renaming DAPI image
+selectWindow("C"+Cgray+"-"+img_save);
+close();
+
+
+
+///////// Thresholding of nuclei with DAPI image
+selectWindow("DAPI_"+number+".TIF");
+run("Smooth", "stack");
+run("Duplicate...", "title=DAPI-bis.TIF duplicate range=stack");
+setSlice(14);
+//run("Brightness/Contrast...");
+run("Enhance Contrast", "saturated=0.35");
+selectWindow("DAPI_"+number+".TIF");
+
+    ///Thresholding and converting to mask
+    setAutoThreshold("Otsu dark");
+    setThreshold(dts, 255);//dts is value determined to select nuclei
+    beep();
+    title2 = "Select threshold for DAPI image";
+    msg2 = "You can: change min value of Otsu threshold,\nor keep pre-selected threshold.\nThen click on OK to continue macro running";
+    waitForUser(title2, msg2);
+    setOption("BlackBackground", false);
+    run("Convert to Mask", "method=Otsu background=Dark");
+    run("Dilate", "stack");
+    run("Erode", "stack");
+run("Adjustable Watershed", "tolerance="+ws+" stack");//fragmentation of nuclei with ws determined
+
+
+
+///////// Thresholding of lncRNA staining with green image
+selectWindow("lncRNA_"+number+".TIF");
+    ///Thresholding and converting to mask
+    setAutoThreshold("Yen dark");
+    setOption("BlackBackground", false);//detection of colored element over a dark background
+    setThreshold(gts, 255);//gts is value determined to select lncRNA
+    run("Convert to Mask", "method=Yen background=Dark");
+    run("Adjustable Watershed", "tolerance="+gs+" stack");//fragmentation of lncRNA signal with gs determined
+    
+    ///Creation of nuclear mask
+    imageCalculator("AND create stack", "lncRNA_"+number+".TIF","DAPI_"+number+".TIF");
+    selectImage("Result of lncRNA_"+number+".TIF");
+    rename("lncRNA-nuclear_"+number+".TIF");
+    
+    ///Creation of cytoplasmic mask
+    imageCalculator("XOR create stack", "lncRNA-nuclear_"+number+".TIF","lncRNA_"+number+".TIF");
+    selectImage("Result of lncRNA-nuclear_"+number+".TIF");
+    rename("lncRNA-cytoplasmic_"+number+".TIF");
+
+
+
+
+if(Int){    
+/////////Measure of BG4 signal intensity
+selectWindow("BG4_"+number+".TIF");
+run("Duplicate...", "title=BG4-int_"+number+".TIF duplicate range=stack");
+}//end of int loop
+
+
+if(Coloc){
+///////// Thresholding of BG4 staining with red image
+selectWindow("BG4_"+number+".TIF");
+    ///Thresholding and converting to mask
+    setAutoThreshold("Yen dark");
+    setOption("BlackBackground", false);//detection of colored element over a dark background
+    setThreshold(rts, 255);//rts is value determined to select BG4 foci
+    run("Convert to Mask", "method=Yen background=Dark");
+    
+    ///Creation of nuclear mask
+    imageCalculator("AND create stack", "lncRNA-nuclear_"+number+".TIF","BG4_"+number+".TIF");
+    selectImage("Result of lncRNA-nuclear_"+number+".TIF");
+    rename("BG4-nuclear_"+number+".TIF");
+    
+    ///Creation of cytoplasmic mask
+    imageCalculator("AND create stack", "lncRNA-cytoplasmic_"+number+".TIF","BG4_"+number+".TIF");
+    selectImage("Result of lncRNA-cytoplasmic_"+number+".TIF");
+    rename("BG4-cytoplasmic_"+number+".TIF");
+}// end of coloc loop    
+
+
+
+///////// Loop to quantify lncRNA foci and BG4 intensity or foci
+for(c=0;c<roiManager("count");c++){
+/// Loop to quantify number of cells
+    selectWindow("DAPI_"+number+".TIF");
+    run("Z Project...", "projection=[Max Intensity]");
+    rename("MAX-DAPI_"+number+".TIF");
+    run("Adjustable Watershed", "tolerance="+ws+" stack");//fragmentation of nuclei with ws determined
+    run("Convert to Mask");
+    roiManager("Select",c);//selection of cluster of cells from ROI manager
+    run("Duplicate...", "title=DAPI_"+c+1+"/"+number+" duplicate ");//duplication of ROI
+    run("Analyze Particles...", "size="+nmin+"-"+nmax+" display clear");
+    selectWindow("Results");
+    cells=nResults();
+    print("number-of-cells-per-ROI_"+c+1+"/"+number+":", cells);
+    run("Clear Results");
+    close("DAPI_"+c+1+"/"+number+"");
+
+
+/// Loop to quantify lncRNA foci
+    /// within nucleus
+        run("3D OC Options", "volume mean_gray_value std_dev_gray_value dots_size=5 font_size=10 redirect_to=none");
+        selectWindow("lncRNA-nuclear_"+number+".TIF");
+        roiManager("Select",c);//selection of nucleus from ROI manager
+        run("Duplicate...", "title=lncRNA-nuclear_"+c+1+"/"+number+" duplicate range=stack");//duplication of ROI and renaming for quantification of lncRNA foci
+        run("Clear Outside", "stack");//clear outside the ROI
+        run("3D Objects Counter", "threshold=0 slice=1 min.=1 max.=2000000 objects summary");//count of lncRNA foci in nucleus
+        close("Objects map of lncRNA-nuclear_"+c+1+"/"+number+"");
+        
+    /// within cytoplasm
+        run("3D OC Options", "volume mean_gray_value std_dev_gray_value dots_size=5 font_size=10 redirect_to=none");
+        selectWindow("lncRNA-cytoplasmic_"+number+".TIF");
+        roiManager("Select",c);//selection from ROI manager
+        run("Duplicate...", "title=lncRNA-cytoplasmic_"+c+1+"/"+number+" duplicate range=stack");//duplication of ROI and renaming for quantification of lncRNA foci
+        run("Clear Outside", "stack");//clear outside the ROI
+        run("3D Objects Counter", "threshold=0 slice=1 min.=1 max.=2000000 objects summary");//count of lncRNA foci in cytoplasm
+        close("Objects map of lncRNA-cytoplasmic_"+c+1+"/"+number+"");
+
+
+if(Int){
+/// Loop to quantify intensity of BG4 within lncRNA foci
+    /// within nucleus
+        run("3D OC Options", "volume mean_gray_value std_dev_gray_value dots_size=5 font_size=10 redirect_to=BG4-int_"+c+1+"/"+number+"");
+        selectWindow("BG4-int_"+number+".TIF");
+        roiManager("Select",c);//selection of nucleus from ROI manager
+        run("Duplicate...", "title=BG4-int_"+c+1+"/"+number+" duplicate range=stack");//duplication of ROI and renaming for quantification of BG4 intensity
+        selectWindow("lncRNA-nuclear_"+c+1+"/"+number+"");
+        run("3D Objects Counter", "threshold=0 slice=1 min.=1 max.=2000000 objects statistics");
+        run("Summarize");
+        //Getting mean and sd results
+        selectWindow("Results");
+        n=nResults();
+            for(j=0; j<n; j++) {
+            Label=getResultString("Label", j);
+                if(Label=="Mean"){
+                meanNormInt=getResult("Mean", j);
+                meanVol=getResult("Volume (micron^3)", j);
+                }//end of loop for mean results
+                if(Label=="SD"){
+                sdNormInt=getResult("Mean", j);
+                sdVol=getResult("Volume (micron^3)", j);
+                }//end of loop for sd results
+                }//end of loop to get results
+            print("lncRNA-nuclear-int-of-BG4_"+c+1+"/"+number+":", meanNormInt+",", sdNormInt);
+            print("lncRNA-nuclear-volume_"+c+1+"/"+number+":", meanVol+",", sdVol);
+        close("Objects map of lncRNA-nuclear_"+c+1+"/"+number+" redirect to BG4-int_"+c+1+"/"+number+"");
+        
+    /// within cytoplasm
+        run("3D OC Options", "volume mean_gray_value std_dev_gray_value dots_size=5 font_size=10 redirect_to=BG4-int_"+c+1+"/"+number+"");
+        selectWindow("lncRNA-cytoplasmic_"+c+1+"/"+number+"");
+        run("3D Objects Counter", "threshold=0 slice=1 min.=1 max.=2000000 objects statistics");
+        run("Summarize");
+        //Getting mean and sd results
+        selectWindow("Results");
+        n=nResults();
+            for(j=0; j<n; j++) {
+            Label=getResultString("Label", j);
+                if(Label=="Mean"){
+                meancNormInt=getResult("Mean", j);
+                meancVol=getResult("Volume (micron^3)", j);
+                }//end of loop for mean results
+                if(Label=="SD"){
+                sdcNormInt=getResult("Mean", j);
+                sdcVol=getResult("Volume (micron^3)", j);
+                }//end of loop for sd results
+                }//end of loop to get results
+            print("lncRNA-cytoplasmic-int-of-BG4_"+c+1+"/"+number+":", meancNormInt+",", sdcNormInt);
+            print("lncRNA-cytoplasmic-volume_"+c+1+"/"+number+":", meancVol+",", sdcVol);
+        close("Objects map of lncRNA-cytoplasmic_"+c+1+"/"+number+" redirect to BG4-int_"+c+1+"/"+number+"");
+        close("BG4-int_"+c+1+"/"+number+"");
+}//end of intensity loop
+
+close("lncRNA-nuclear_"+c+1+"/"+number+"");
+close("lncRNA-cytoplasmic_"+c+1+"/"+number+"");
+        
+if(Coloc){
+/// Loop to quantify number of BG4 foci within lncRNA foci
+    /// within nucleus
+        run("3D OC Options", "volume mean_gray_value std_dev_gray_value dots_size=5 font_size=10 redirect_to=none");
+        selectWindow("BG4-nuclear_"+number+".TIF");
+        roiManager("Select",c);//selection of nucleus from ROI manager
+        run("Duplicate...", "title=coloc-BG4-nuclear_"+c+1+"/"+number+" duplicate range=stack");//duplication of ROI and renaming for quantification colocalizing BG4
+        run("Clear Outside", "stack");//clear outside the ROI
+        run("3D Objects Counter", "threshold=0 slice=1 min.=1 max.=2000000 objects summary");//count of lncRNA foci in nucleus
+        close("Objects map of coloc-BG4-nuclear_"+c+1+"/"+number+"");
+        
+    /// within cytoplasm
+        run("3D OC Options", "volume mean_gray_value std_dev_gray_value dots_size=5 font_size=10 redirect_to=none");
+        selectWindow("BG4-cytoplasmic_"+number+".TIF");
+        roiManager("Select",c);//selection of nucleus from ROI manager
+        run("Duplicate...", "title=coloc-BG4-cytoplasmic_"+c+1+"/"+number+" duplicate range=stack");//duplication of ROI and renaming for quantification colocalizing BG4
+        run("Clear Outside", "stack");//clear outside the ROI
+        run("3D Objects Counter", "threshold=0 slice=1 min.=1 max.=2000000 objects summary");//count of BG4 foci colocalizing within cytoplasm
+        close("Objects map of coloc-BG4-cytoplasmic_"+c+1+"/"+number+"");
+        
+        close("coloc-BG4-nuclear_"+c+1+"/"+number+"");
+        close("coloc-BG4-cytoplasmic_"+c+1+"/"+number+"");
+    }//end of coloc loop
+
+
+}//end of ROI manager loop
+
+    
+
+
+///////// Save of images and results lncRNA foci with BG4 intensity and/or colocalized BG4/lncRNA foci per images
+
+//Save and close DAPI images
+selectWindow("DAPI_"+number+".TIF");
+saveAs("Tiff", path_DAPI_save);
+selectWindow("MAX-DAPI_"+number+".TIF");
+saveAs("Tiff", save_directory+"MAX-DAPI_"+name+number+".TIF");
+
+//Save and close lncRNA images
+selectWindow("lncRNA_"+number+".TIF");
+saveAs("Tiff", path_green_save);
+selectWindow("lncRNA-nuclear_"+number+".TIF");
+saveAs("Tiff", save_directory+name+"_lncRNA-nuclear_"+number+".TIF");
+selectWindow("lncRNA-cytoplasmic_"+number+".TIF");
+saveAs("Tiff", save_directory+name+"_lncRNA-cytoplasmic_"+number+".TIF");
+
+if(Coloc){
+//Save and close BG4 images
+selectWindow("BG4_"+number+".TIF");
+saveAs("Tiff", path_red_save);
+selectWindow("BG4-nuclear_"+number+".TIF");
+saveAs("Tiff", save_directory+name+"_BG4-nuclear_"+number+".TIF");
+selectWindow("BG4-cytoplasmic_"+number+".TIF");
+saveAs("Tiff", save_directory+name+"_BG4-cytoplasmic_"+number+".TIF");
+}//end loop if BG4 thresholded is used
+
+close("*");
+}
+
+
+///////////////////////////// Save all quantification /////////////////////////////
+selectWindow("Log");
+saveAs("text",save_directory+"all-results-for-all-images-of_"+name+".txt");//Save all types of quantification for all images
+run("Clear Results");
+run("Close");
+close("*");
+
+
+
+///////////////////////////// Message box for macro restarting /////////////////////////////
+messa= getBoolean("Do you have other images to analyze?");
+Dialog.addMessage("!!!Macro will work with same parameters!!!");
+if (messa==1){
+//run function
+sameParameters();
+}
+else if (messa==0) {
+exit;
+}
+}//end of function "sameParameters"
+
+
+
+sameParameters();
