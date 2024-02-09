@@ -1,12 +1,12 @@
 # BG4
-This macro is created to be used in ImageJ or Fiji program.
-"Java" or "ImageJ Macro" language must be selected.
+This macro is created to be used in **ImageJ** or in **Fiji** program.
+***"Java"*** or ***"ImageJ Macro"*** language must be selected.
 
 With these languages: 
 
 >	- commands are written in black or in ocher,
 >	- variables are in black,
->	- functions and loop are in blue,
+>	- functions and loops are in blue,
 >	- texts and messages are in pink,
 >	- initial values (numbers) are in purple,
 >	- details are in green.
