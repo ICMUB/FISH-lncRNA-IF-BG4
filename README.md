@@ -1,6 +1,6 @@
 # BG4
 This macro is created to be used in **ImageJ** or in **Fiji** program.
-***"Java"*** or ***"ImageJ Macro"*** language must be selected.
+***"Java"*** or ***"ImageJ Macro"*** language must be selected to save macro in program.
 
 With these languages: 
 
